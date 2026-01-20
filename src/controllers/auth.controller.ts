@@ -1,15 +1,16 @@
 import { validateLoginData, validateRegistrationData } from "../utils/auth.utils.js";
-import { usersTable, sql } from "../db/schema.js";
+import { users, sql, eq } from "../db/schema.js";
 import { db } from "../index.js";
 import jwt from "jsonwebtoken";
-import type { NextFunction } from "express";
+import type { NextFunction, Request, Response } from "express";
+
 
 export const userSignUp = async (req: any, res: any, next: NextFunction) => {
     try {
         const {name, age, email, password, photo} = validateRegistrationData(req.body);
         
         // Check if email exists
-        const existingEmail = await db.select().from(usersTable).where(sql`${usersTable.email} = ${email}`)
+        const existingEmail = await db.select().from(users).where(sql`${users.email} = ${email}`)
 
         console.log(existingEmail.length);
 
@@ -22,7 +23,7 @@ export const userSignUp = async (req: any, res: any, next: NextFunction) => {
         // TODO: Hash the password
         
         // Insert user data
-        const newUser = await db.insert(usersTable).values([{name, age, email, password, photo}]);
+        const newUser = await db.insert(users).values([{name, age, email, password, photo}]);
 
         console.log(newUser);
 
@@ -45,7 +46,7 @@ export const userLogin = async (req: any, res: any, next: NextFunction) => {
 
       // 2)Check if the user exists
 
-      const existingUser = await db.select().from(usersTable).where(sql`${usersTable.email} = ${email}`)
+      const existingUser = await db.select().from(users).where(sql`${users.email} = ${email}`)
 
       console.log(existingUser);
 
@@ -86,3 +87,11 @@ export const userLogin = async (req: any, res: any, next: NextFunction) => {
       next(new Error("Something went wrong!"));
    }
 }
+
+// TODO: API'S
+// Update the user(Only for logged In, Only password)
+
+// DELETE THE USER AND also its posts and likes and comments
+
+// Forgot and Reset the user password (Not loggedIn)
+

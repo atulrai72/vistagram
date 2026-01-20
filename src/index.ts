@@ -5,6 +5,8 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import authRouter from "./routes/auth.router.js";
 import postsRouter from "./routes/post.router.js";
 import errorMiddleware from "./error-handler/index.js";
+import userRouter from "./routes/user.router.js";
+import * as schema from "./db/schema.js"
 
 
 const app = express();
@@ -16,7 +18,8 @@ app.use(morgan('dev'));
 export const db = drizzle({
     connection: {
         connectionString: process.env.DATABASE_URL,
-    }
+    },
+    schema: schema
 })
 
 app.get("/", (req, res) => {
@@ -34,6 +37,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", authRouter);
 app.use("/api/posts", postsRouter);
+app.use("/api/users", userRouter);
 
 app.use(errorMiddleware);
 
