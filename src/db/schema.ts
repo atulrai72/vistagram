@@ -31,7 +31,7 @@ export const comments = pgTable("comments", {
     userId: integer('user_id').notNull().references(() => users.id)
 })
 
-// Saved posts for many-many relations
+// TODO: Saved posts for many-many relations
 
 export const savedPosts = pgTable("save-posts-schema", {
     id: integer().primaryKey(),

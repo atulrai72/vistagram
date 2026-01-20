@@ -7,6 +7,8 @@ import postsRouter from "./routes/post.router.js";
 import errorMiddleware from "./error-handler/index.js";
 import userRouter from "./routes/user.router.js";
 import * as schema from "./db/schema.js"
+import commentRouter from "./routes/comment.router.js";
+import likeRouter from "./routes/like.router.js";
 
 
 const app = express();
@@ -38,6 +40,8 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/posts", postsRouter);
 app.use("/api/users", userRouter);
+app.use("/api/comments", commentRouter);
+app.use("/api/likes", likeRouter);
 
 app.use(errorMiddleware);
 

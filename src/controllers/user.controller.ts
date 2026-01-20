@@ -45,4 +45,4 @@ export const getUserDataWithPosts= async (req: Request, res: Response, next: Nex
    }
 }
 
-// Update the user profile details like  => name, age only
+// TODO: Update the user profile details like  => name, age only
