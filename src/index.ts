@@ -9,11 +9,16 @@ import userRouter from "./routes/user.router.js";
 import * as schema from "./db/schema.js"
 import commentRouter from "./routes/comment.router.js";
 import likeRouter from "./routes/like.router.js";
+import {Server} from "socket.io"
+import { createServer } from "node:http";
 
 
 const app = express();
 
 app.use(express.json({limit: "10mb"}));
+
+const server  = createServer(app);
+const io = new Server(server);
 
 app.use(morgan('dev'));
 
@@ -36,6 +41,11 @@ app.get("/", (req, res) => {
         })
     }
 })
+
+io.on('connection', (socket) => {
+  console.log('a user connected');
+});
+
 
 app.use("/api/auth", authRouter);
 app.use("/api/posts", postsRouter);

@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { varchar, integer, pgTable, text } from "drizzle-orm/pg-core";
+import { varchar, integer, pgTable, text, primaryKey } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -7,12 +7,6 @@ export const users = pgTable("users", {
     age: integer().notNull(),
     email: varchar({ length: 50 }).unique().notNull(),
     password: varchar().notNull(),
-})
-
-export const otps = pgTable("otps", {
-    id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    otp: integer().notNull(),
-    userId: integer('user_id').notNull().references(() => users.id),
 })
 
 export const avatar = pgTable("avatar", {
@@ -42,8 +36,15 @@ export const comments = pgTable("comments", {
     userId: integer('user_id').notNull().references(() => users.id)
 })
 
-// TODO: Saved posts for many-many relations
+export const follows = pgTable("follows", {
+    followerId: integer('follower_id').notNull().references(() => users.id),
+    followingId: integer('following_id').notNull().references(() => users.id),
+}, (t) => ({
+   // Composite key
+    pk: primaryKey({ columns: [t.followerId, t.followingId] }),
+}));
 
+// TODO: Saved posts for many-many relations
 export const savedPosts = pgTable("save-posts-schema", {
     id: integer().primaryKey(),
     postId: integer('post_id').notNull().references(() => posts.id),
@@ -52,12 +53,26 @@ export const savedPosts = pgTable("save-posts-schema", {
 
 // Relations
 
-export const usersRelations = relations(users, ({ one,many }) => ({
+export const usersRelations = relations(users, ({ many }) => ({
     posts: many(posts),
     likes: many(likes),
     comments: many(comments),
+    followers: many(follows, { relationName: "user_followers" }),
+    following: many(follows, { relationName: "user_following" }),
 }));
 
+export const followsRelations = relations(follows, ({ one }) => ({
+    follower: one(users, {
+        fields: [follows.followerId],
+        references: [users.id],
+        relationName: "user_following" 
+    }),
+    following: one(users, {
+        fields: [follows.followingId],
+        references: [users.id],
+        relationName: "user_followers"
+    }),
+}));
 
 export const postsRelations = relations(posts, ({ one, many }) => ({
     author: one(users, {

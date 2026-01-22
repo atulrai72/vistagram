@@ -45,6 +45,51 @@ export const getUserDataWithPosts= async (req: Request, res: Response, next: Nex
    }
 }
 
+export const getFollowingFeed = async (req: Request, res: Response, next: NextFunction) => {
+   try {
+      
+   } catch (error) {
+      console.log(error);
+      res.status(404).json({
+         message: "Something went wrong while fetching the feed of people you follow",
+      })
+   }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // TODO: Update the user profile details like  => name, age only
 
 

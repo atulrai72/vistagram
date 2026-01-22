@@ -1,5 +1,5 @@
 import { validateForgotPasswordSchema, validateLoginData, validateOtp, validateRegistrationData, validateResetPasswordData } from "../utils/auth.utils.js";
-import { users, sql, eq, otps } from "../db/schema.js";
+import { users, sql, eq } from "../db/schema.js";
 import { db } from "../index.js";
 import jwt from "jsonwebtoken";
 import type { NextFunction, Request, Response } from "express";
