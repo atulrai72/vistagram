@@ -51,6 +51,8 @@ export const getAllPosts = async (req: Request, res: Response, next: NextFunctio
             next(new Error("No posts found in the whole app."));
         }
 
+        console.log((req as any).user)
+
         res.status(201).json({
             message: "Posts fetched successfully",
             allposts

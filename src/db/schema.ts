@@ -6,8 +6,19 @@ export const users = pgTable("users", {
     name: varchar({ length: 20 }).notNull(),
     age: integer().notNull(),
     email: varchar({ length: 50 }).unique().notNull(),
-    password: varchar({ length: 20 }).notNull(),
-    photo: text('photo')
+    password: varchar().notNull(),
+})
+
+export const otps = pgTable("otps", {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    otp: integer().notNull(),
+    userId: integer('user_id').notNull().references(() => users.id),
+})
+
+export const avatar = pgTable("avatar", {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    file_url: text().notNull(),
+    userId: integer('user_id').notNull().references(() => users.id),
 })
 
 export const posts = pgTable("posts", {
@@ -41,11 +52,12 @@ export const savedPosts = pgTable("save-posts-schema", {
 
 // Relations
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ one,many }) => ({
     posts: many(posts),
     likes: many(likes),
     comments: many(comments),
 }));
+
 
 export const postsRelations = relations(posts, ({ one, many }) => ({
     author: one(users, {
