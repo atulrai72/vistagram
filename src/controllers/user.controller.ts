@@ -5,7 +5,7 @@ import { db } from "../index.js";
 
 
 // GET the loggedIn user data
-export const getMyProfile = async (req: Request, res: Response, next: NextFunction) => {
+export const getCurrentUser = async (req: Request, res: Response, next: NextFunction) => {
    try {
       const currentUser = (req as any).user;
       const userId: number = Number(currentUser.sub);
@@ -14,8 +14,12 @@ export const getMyProfile = async (req: Request, res: Response, next: NextFuncti
          next(new Error("Please loggedIn first"));
       }
 
-      const loggedInUser = await db.select().from(users).where(eq(users.id, userId));
-      console.log(loggedInUser);
+      const [loggedInUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+
+      if (!loggedInUser) {
+         return next(new Error("User not found"));
+      }
+
       res.status(200).json({
          message: "Your profile fetched succesfully",
          loggedInUser

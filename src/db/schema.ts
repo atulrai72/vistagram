@@ -4,7 +4,6 @@ import { varchar, integer, pgTable, text, primaryKey } from "drizzle-orm/pg-core
 export const users = pgTable("users", {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     name: varchar({ length: 20 }).notNull(),
-    age: integer().notNull(),
     email: varchar({ length: 50 }).unique().notNull(),
     password: varchar().notNull(),
 })
@@ -105,6 +104,6 @@ export const commentsRelations = relations(comments, ({ one }) => ({
     }),
 }));
 
-export {sql, and, eq}  from "drizzle-orm";
+export {sql, and, eq, lt}  from "drizzle-orm";
 
 // TODO: Tokens schema

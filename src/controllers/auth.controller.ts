@@ -10,7 +10,7 @@ import { createClient } from "redis";
 
 export const userSignUp = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const {name, age, email, password} = validateRegistrationData(req.body);
+        const {name, email, password} = validateRegistrationData(req.body);
         
         // Check if email exists
         const existingEmail = await db.select().from(users).where(sql`${users.email} = ${email}`)
@@ -27,7 +27,7 @@ export const userSignUp = async (req: Request, res: Response, next: NextFunction
 
         
         // Insert user data
-        const newUser = await db.insert(users).values([{name, age, email, password: hashedPassword}]);
+        const newUser = await db.insert(users).values([{name, email, password: hashedPassword}]);
 
         console.log(newUser);
 
@@ -93,8 +93,23 @@ export const userLogin = async (req: Request, res: Response, next: NextFunction)
    }
 }
 
-// TODO: API'S
-// Update the user(Only for logged In, Only password)
+export const logout = async (req: Request, res: Response, next: NextFunction) => {
+   try {
+      res.clearCookie("token", {
+         httpOnly: true,
+         secure: process.env.NODE_ENV === "production",
+         sameSite: "none",
+      });
+
+      res.status(200).json({
+         message: "Logged out successfully"
+      });
+
+   } catch (error) {
+      console.log(error);
+      next(new Error("Something went wrong while logging out."));
+   }
+};
  
 export const updatePassword = async (req: Request, res: Response, next: NextFunction) => {
    try {
@@ -112,8 +127,8 @@ export const updatePassword = async (req: Request, res: Response, next: NextFunc
          return next(new Error("Please login first."))
       }
 
-      const {oldPassword, newPassword, passwordConfirm} = validateResetPasswordData(req.body);
-      console.log(existingUser.password!);
+      const {oldPassword, newPassword, confirmPassword} = validateResetPasswordData(req.body);
+
       const passwordMatch = await bcrypt.compare(oldPassword, existingUser.password!);
        
       if(!passwordMatch){
@@ -123,7 +138,7 @@ export const updatePassword = async (req: Request, res: Response, next: NextFunc
          return;
       }
       
-      if(newPassword !== passwordConfirm){
+      if(newPassword !== confirmPassword){
           res.status(404).json({
             message: "Password do not match"
          })
