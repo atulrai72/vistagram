@@ -4,6 +4,6 @@ import { jwtVerify } from "../middleware/jwt-verify.middleware.js";
 
 const authRouter: Router = express.Router();
 
-authRouter.post("/sign-up", userSignUp).post("/login", userLogin).put("/update-password",jwtVerify, updatePassword).get("/forgot", forgotPassword).put("/reset", resetPassword).post("/logout", logout);
+authRouter.post("/sign-up", userSignUp).post("/login", userLogin).put("/update-password",jwtVerify, updatePassword).post("/forgot", forgotPassword).put("/reset", resetPassword).post("/logout", logout);
 
 export default authRouter;

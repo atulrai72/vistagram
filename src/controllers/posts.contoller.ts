@@ -1,42 +1,55 @@
 import { v2 as cloudinary } from "cloudinary";
-import { validateUplaodData } from "../utils/posts.utils.js";
+// import { validateUplaodData } from "../utils/posts.utils.js";
 import { db } from "../index.js";
 import { posts, and, eq, lt } from "../db/schema.js";
 import type { NextFunction, Response, Request } from "express";
+import streamifier from "streamifier";
 
 export const userPosts = async (req: any, res: any) => {
   try {
-    // 1) Upload the file to cloudinary
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
     cloudinary.config({
       cloud_name: "dkylij3nx",
       api_key: "125287177378846",
       api_secret: "Ev3w5943JS42WRDfx95xZr_CuNU",
     });
 
-    const { userFile } = validateUplaodData(req.body);
+    const streamUpload = (fileBuffer: Buffer) => {
+      return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "user_posts" },
+          (error, result) => {
+            if (result) {
+              resolve(result);
+            } else {
+              reject(error);
+            }
+          },
+        );
+        streamifier.createReadStream(fileBuffer).pipe(stream);
+      });
+    };
 
-    const uploadResult = await cloudinary.uploader.upload(userFile, {
-      public_id: "user_posts",
-    });
+    // 3. Upload the file buffer
+    const uploadResult: any = await streamUpload(req.file.buffer);
 
-    console.log(uploadResult);
+    console.log("Cloudinary URL:", uploadResult.secure_url);
 
-    // TODO: Save the file_url and user_id into the database
-    const file_url = uploadResult.url;
-    const currentUser = req.user;
-    const userId: number = Number(currentUser.sub);
-    console.log(userId);
-    const uploadedPost = await db.insert(posts).values([{ file_url, userId }]);
+    const file_url = uploadResult.secure_url;
+    const userId = req.user.sub;
+    await db.insert(posts).values([{ file_url, userId }]);
 
-    //2) Send the response
     res.status(200).json({
-      message: "Posts succesfull, ENJOY",
-      uploadedPost,
+      message: "Post successful",
+      url: uploadResult.secure_url,
     });
   } catch (error) {
-    console.log(error);
-    res.status(404).json({
-      message: "Something went wrong",
+    console.log("Upload Error:", error);
+    res.status(500).json({
+      message: "Something went wrong during upload",
     });
   }
 };
@@ -180,28 +193,3 @@ export const deletePost = async (
     next(new Error("Error while deleting the post"));
   }
 };
-
-// // Update the POSTS (Why to update the POST?? Not makes sense)
-
-// export const updatePost = async (req: Request, res: Response, next: NextFunction) => {
-//     try {
-//         const currentUser = (req as any).user;
-//         const userId: number = Number(currentUser.sub);
-
-//         if(!userId){
-//          next(new Error("Please loggedIn first"));
-//         }
-
-//         const newComment = req.body;
-//         const updatedComment = await db.update(posts).set({posts: newComment }).where(eq(users.id, userId));
-
-//         res.status(201).json({
-//             message: "Comment updated successfully",
-//             updatedComment
-//         })
-
-//     } catch (error) {
-//         console.log(error);
-//         next(new Error("Something went wrong while updating the comment!"));
-//     }
-// }
