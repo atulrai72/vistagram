@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { varchar, integer, pgTable, text, primaryKey } from "drizzle-orm/pg-core";
+import { varchar, integer, pgTable, text, primaryKey, index, timestamp } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -18,7 +18,12 @@ export const posts = pgTable("posts", {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     file_url: text().notNull(),
     userId: integer('user_id').notNull().references(() => users.id),
-})
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+},
+(t) => ({
+    userIdIdx: index('posts_user_id_idx').on(t.userId),
+    byUserDate: index('posts_user_date_idx').on(t.userId, t.createdAt)
+}))
 
 
 export const likes = pgTable("likes", {
@@ -26,14 +31,21 @@ export const likes = pgTable("likes", {
     like: integer(),
     postId: integer('post_id').notNull().references(() => posts.id),
     userId: integer('user_id').notNull().references(() => users.id),
+},
+(t) => ({
+    postIdx: index('likes_post_id_idx').on(t.postId) // To get the coount of likes on certain post very fast
 })
+)
 
 export const comments = pgTable("comments", {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     comment: varchar({ length: 500 }),
     postId: integer('post_id').notNull().references(() => posts.id),
     userId: integer('user_id').notNull().references(() => users.id)
-})
+}, 
+(t) => ({
+    postIdx: index('comments_post_id_idx').on(t.postId)
+}))
 
 export const follows = pgTable("follows", {
     followerId: integer('follower_id').notNull().references(() => users.id),
@@ -41,13 +53,14 @@ export const follows = pgTable("follows", {
 }, (t) => ({
    // Composite key
     pk: primaryKey({ columns: [t.followerId, t.followingId] }),
+    followingIdx: index('follows_following_idx').on(t.followingId),
 }));
 
 // TODO: Saved posts for many-many relations
 export const savedPosts = pgTable("save-posts-schema", {
     id: integer().primaryKey(),
     postId: integer('post_id').notNull().references(() => posts.id),
-    userId: integer('user_id').notNull().references(() => users.id)
+    userId: integer('user_id').notNull().references(() => users.id) 
 })
 
 // Relations

@@ -1,8 +1,7 @@
 import * as z from "zod";
 
 export const signUpSchema = z.object({
-  name: z
-    .string(),
+  name: z.string(),
   email: z
     .email()
     .max(50, { message: "email id not be greater than 50 characters" }),
@@ -23,7 +22,8 @@ export const loginSchema = z.object({
 });
 
 export const uploadSchema = z.object({
-  userFile: z.string(),
+  title: z.string(),
+  description: z.string(),
 });
 
 export const likeSchema = z.object({

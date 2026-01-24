@@ -4,6 +4,7 @@ import { db } from "../index.js";
 import { posts, and, eq, lt } from "../db/schema.js";
 import type { NextFunction, Response, Request } from "express";
 import streamifier from "streamifier";
+import { validateUplaodData } from "../utils/posts.utils.js";
 
 export const userPosts = async (req: any, res: any) => {
   try {
@@ -20,7 +21,9 @@ export const userPosts = async (req: any, res: any) => {
     const streamUpload = (fileBuffer: Buffer) => {
       return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
-          { folder: "user_posts" },
+          { folder: "user_posts",
+            resource_type: "auto",
+           },
           (error, result) => {
             if (result) {
               resolve(result);
@@ -40,7 +43,9 @@ export const userPosts = async (req: any, res: any) => {
 
     const file_url = uploadResult.secure_url;
     const userId = req.user.sub;
-    await db.insert(posts).values([{ file_url, userId }]);
+    // const {title, description} =  validateUplaodData(req.body); TODO
+    
+    await db.insert(posts).values([{ file_url, userId}]);
 
     res.status(200).json({
       message: "Post successful",
@@ -89,7 +94,7 @@ export const getAllPostsWithUserDetails = async (
 ) => {
   try {
     const { cursor } = req.query;
-    const limit = 2;
+    const limit = 10;
 
     const whereCondition = cursor ? lt(posts.id, Number(cursor)) : undefined;
 

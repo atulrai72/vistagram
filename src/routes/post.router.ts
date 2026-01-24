@@ -1,10 +1,12 @@
 import express, { Router } from "express";
-import multer from "multer"; // Import multer
+import multer from "multer";
 import { getAllPosts, getAllPostsWithUserDetails, getPostWithUser, userPosts } from "../controllers/posts.contoller.js";
 import { jwtVerify } from "../middleware/jwt-verify.middleware.js";
 
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ storage: storage,
+  limits: { fileSize: 50 * 1024 * 1024 }
+ });
 
 const postsRouter: Router = express.Router();
 
