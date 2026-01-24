@@ -1,15 +1,23 @@
 import { v2 as cloudinary } from "cloudinary";
-// import { validateUplaodData } from "../utils/posts.utils.js";
 import { db } from "../index.js";
 import { posts, and, eq, lt } from "../db/schema.js";
 import type { NextFunction, Response, Request } from "express";
 import streamifier from "streamifier";
 import { validateUplaodData } from "../utils/posts.utils.js";
 
-export const userPosts = async (req: any, res: any) => {
+export const userPosts = async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const { caption } = validateUplaodData(req.body);
+    console.log(caption);
+
+    if(!caption){
+      return res.status(404).json({
+        message: "Please add the description to upload the post."
+      })
     }
 
     cloudinary.config({
@@ -21,9 +29,7 @@ export const userPosts = async (req: any, res: any) => {
     const streamUpload = (fileBuffer: Buffer) => {
       return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
-          { folder: "user_posts",
-            resource_type: "auto",
-           },
+          { folder: "user_posts", resource_type: "auto" },
           (error, result) => {
             if (result) {
               resolve(result);
@@ -39,17 +45,19 @@ export const userPosts = async (req: any, res: any) => {
     // 3. Upload the file buffer
     const uploadResult: any = await streamUpload(req.file.buffer);
 
-    console.log("Cloudinary URL:", uploadResult.secure_url);
+    console.log("Cloudinary URL:", uploadResult);
 
     const file_url = uploadResult.secure_url;
-    const userId = req.user.sub;
-    // const {title, description} =  validateUplaodData(req.body); TODO
+    const file_type = uploadResult.resource_type;
+    const userId = (req as any).user.sub;
     
-    await db.insert(posts).values([{ file_url, userId}]);
+    await db
+      .insert(posts)
+      .values([{ file_url, file_type, caption, userId}]);
 
     res.status(200).json({
       message: "Post successful",
-      url: uploadResult.secure_url,
+      // url: uploadResult.secure_url,
     });
   } catch (error) {
     console.log("Upload Error:", error);
@@ -106,6 +114,7 @@ export const getAllPostsWithUserDetails = async (
           columns: {
             name: true,
             email: true,
+            avatar_url: true
           },
         },
         comments: true,

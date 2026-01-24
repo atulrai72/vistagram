@@ -5,7 +5,7 @@ import { jwtVerify } from "../middleware/jwt-verify.middleware.js";
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 }
+  limits: { fileSize: 100 * 1024 * 1024 }
  });
 
 const postsRouter: Router = express.Router();

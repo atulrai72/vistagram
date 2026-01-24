@@ -22,8 +22,7 @@ export const loginSchema = z.object({
 });
 
 export const uploadSchema = z.object({
-  title: z.string(),
-  description: z.string(),
+  caption: z.string(),
 });
 
 export const likeSchema = z.object({

@@ -6,17 +6,15 @@ export const users = pgTable("users", {
     name: varchar({ length: 20 }).notNull(),
     email: varchar({ length: 50 }).unique().notNull(),
     password: varchar().notNull(),
+    avatar_url: text()
 })
 
-export const avatar = pgTable("avatar", {
-    id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    file_url: text().notNull(),
-    userId: integer('user_id').notNull().references(() => users.id),
-})
 
 export const posts = pgTable("posts", {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     file_url: text().notNull(),
+    file_type: text().notNull(),
+    caption: text().notNull(),
     userId: integer('user_id').notNull().references(() => users.id),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 },

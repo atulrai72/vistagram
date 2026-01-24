@@ -233,9 +233,11 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
          throw err;
       });
 
+      const numOtp = Number(otp);
+
       await redis.connect();
       
-      const existingEmail = await redis.get(`otp:${otp}`);
+      const existingEmail = await redis.get(`otp:${numOtp}`);
 
       if(!existingEmail){
          await redis.disconnect();
@@ -255,6 +257,16 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
             message: "Account with this email does not exist"
          });
          return;
+      }
+
+      // TODO: Check if the user entered the old password
+      
+      const passwordMatch = await bcrypt.compare(newPassword, existingUser.password!);
+       
+      if(passwordMatch){
+         return res.status(404).json({
+            message: "Please enter the new password!"
+         })
       }
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);

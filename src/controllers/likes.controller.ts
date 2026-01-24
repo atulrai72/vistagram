@@ -27,6 +27,43 @@ export const postLike = async (req: Request, res: Response, next: NextFunction) 
     }
 }
 
+// GET all likes on a specific post
+
+export const getLikes = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const postId = Number(req.params.postId);
+        if (isNaN(postId)) {
+            return res.status(400).json({ message: "Invalid Post ID format" });
+        }
+        const allLikes = await db.query.likes.findMany({
+            where: eq(likes.postId, postId),
+            with: {
+                user: {
+                    columns: {
+                        name: true,
+                    }
+                }
+            }
+        })
+
+       if(!allLikes){
+        return res.status(404).json({
+            message: "No comments on this post"
+        })
+       }
+
+       res.status(200).json({
+        message: "Comments fetched successfully",
+        allLikes
+       })
+    } catch (error) {
+        console.log(error);
+        res.status(404).json({
+            message: "Something went wrong"
+        })
+    }
+}
+
 // Delete the like
 
 export const deleteLike = async (req: Request, res: Response, next: NextFunction) => {
