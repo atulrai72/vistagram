@@ -1,10 +1,22 @@
 import { v2 as cloudinary } from "cloudinary";
 import { db } from "../index.js";
-import { posts, and, eq, lt } from "../db/schema.js";
+import {
+  posts,
+  and,
+  eq,
+  lt,
+  likes,
+  comments,
+  sql,
+  users,
+  desc,
+  getTableColumns,
+} from "../db/schema.js";
 import type { NextFunction, Response, Request } from "express";
 import streamifier from "streamifier";
 import { validateUplaodData } from "../utils/posts.utils.js";
 
+// Post Upload
 export const userPosts = async (req: Request, res: Response) => {
   try {
     if (!req.file) {
@@ -14,10 +26,10 @@ export const userPosts = async (req: Request, res: Response) => {
     const { caption } = validateUplaodData(req.body);
     console.log(caption);
 
-    if(!caption){
+    if (!caption) {
       return res.status(404).json({
-        message: "Please add the description to upload the post."
-      })
+        message: "Please add the description to upload the post.",
+      });
     }
 
     cloudinary.config({
@@ -50,10 +62,8 @@ export const userPosts = async (req: Request, res: Response) => {
     const file_url = uploadResult.secure_url;
     const file_type = uploadResult.resource_type;
     const userId = (req as any).user.sub;
-    
-    await db
-      .insert(posts)
-      .values([{ file_url, file_type, caption, userId}]);
+
+    await db.insert(posts).values([{ file_url, file_type, caption, userId }]);
 
     res.status(200).json({
       message: "Post successful",
@@ -67,34 +77,6 @@ export const userPosts = async (req: Request, res: Response) => {
   }
 };
 
-// Get all posts only
-
-export const getAllPosts = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  try {
-    const allposts = await db.select().from(posts);
-
-    if (!allposts) {
-      next(new Error("No posts found in the whole app."));
-    }
-
-    console.log((req as any).user);
-
-    res.status(201).json({
-      message: "Posts fetched successfully",
-      allposts,
-    });
-  } catch (error) {
-    console.log(error);
-    next(new Error("Something went wrong while fetching all posts."));
-  }
-};
-
-// Get All Posts and also the user details
-
 export const getAllPostsWithUserDetails = async (
   req: Request,
   res: Response,
@@ -104,75 +86,58 @@ export const getAllPostsWithUserDetails = async (
     const { cursor } = req.query;
     const limit = 10;
 
-    const whereCondition = cursor ? lt(posts.id, Number(cursor)) : undefined;
+    const currentUser = (req as any).user;
+    const userId = Number(currentUser?.sub);
 
-    const postsWithUser = await db.query.posts.findMany({
-      where: whereCondition,
-      limit: limit,
-      with: {
-        author: {
-          columns: {
-            name: true,
-            email: true,
-            avatar_url: true
-          },
-        },
-        comments: true,
-      },
-    });
-    if (!postsWithUser) {
-      next(new Error("No posts found"));
+    if (!userId) {
+      return res.status(401).json({ message: "Please log in first" });
     }
 
+    const postsData = await db
+      .select({
+        ...getTableColumns(posts),
+
+        author: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          avatar_url: users.avatar_url,
+        },
+
+        likeCount: sql<number>`(
+            SELECT count(*) FROM ${likes} WHERE ${likes.postId} = ${posts.id}
+        )`.mapWith(Number),
+
+        commentCount: sql<number>`(
+            SELECT count(*) FROM ${comments} WHERE ${comments.postId} = ${posts.id}
+        )`.mapWith(Number),
+
+        hasLiked: sql<boolean>`EXISTS (
+            SELECT 1 FROM ${likes} 
+            WHERE ${likes.postId} = ${posts.id} AND ${likes.userId} = ${userId}
+        )`.mapWith(Boolean),
+      })
+      .from(posts)
+      .leftJoin(users, eq(posts.userId, users.id))
+      .where(cursor ? lt(posts.id, Number(cursor)) : undefined)
+      .orderBy(desc(posts.id))
+      .limit(limit);
+
     const nextCursor =
-      postsWithUser.length === limit
-        ? postsWithUser[postsWithUser.length - 1]?.id
-        : null;
+      postsData.length === limit ? postsData[postsData.length - 1]?.id : null;
 
     res.status(200).json({
       message: "Posts fetched successfully",
-      posts: postsWithUser,
+      posts: postsData,
       nextCursor,
     });
   } catch (error) {
-    console.log(error);
+    console.error("Fetch Error:", error);
     next(new Error("Error while fetching the posts with user details"));
   }
 };
 
-// Get a post with the commenst in it and also the user details
-
-export const getPostWithUser = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  try {
-    const { id } = req.body;
-
-    if (!id) {
-      next(new Error("Please provide the id to delete the post"));
-    }
-
-    const postWithUser = await db.query.posts.findFirst({
-      where: eq(posts.id, id),
-      with: {
-        author: true,
-        comments: true,
-      },
-    });
-
-    res.status(200).json({
-      message: "Post fetched successfully",
-      postWithUser,
-    });
-  } catch (error) {
-    console.log(error);
-    next(new Error("Error while fetching a post with user details"));
-  }
-};
-
-// DELETE THE POST AND also the comments and likes
+// DELETE THE POST AND also the comments and likes // I have to use transaction
 
 export const deletePost = async (
   req: Request,
@@ -187,20 +152,47 @@ export const deletePost = async (
       return next(new Error("User not authenticated"));
     }
 
-    const { id } = req.body;
-    const deletedPost = await db
-      .delete(posts)
-      .where(and(eq(posts.id, id), eq(posts.userId, userId)))
-      .returning();
+    const postId = Number(req.params.postId);
+
+    if (isNaN(postId)) {
+      return res.status(400).json({ message: "Invalid Post ID format" });
+    }
+
+    // Use the transaction here
+
+    const deletedPost = await db.transaction(async (tx) => {
+      await tx.delete(likes).where(eq(likes.postId, postId));
+
+      await tx.delete(comments).where(eq(comments.postId, postId));
+
+      return await tx
+        .delete(posts)
+        .where(and(eq(posts.id, postId), eq(posts.userId, userId)))
+        .returning();
+    });
 
     if (deletedPost.length === 0) {
-      return next(new Error("you are not authorized to delete the post."));
+      const postExists = await db
+        .select()
+        .from(posts)
+        .where(eq(posts.id, postId));
+
+      if (postExists.length === 0) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Post not found" });
+      }
+
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to delete this post",
+      });
     }
 
     res.status(200).json({
       success: true,
       message: "Post deleted successfully",
-      data: deletedPost[0],
+      // data: deletedPost[0],
     });
   } catch (error) {
     console.log(error);

@@ -1,107 +1,54 @@
-import { db } from '../index.js';
-import { likes, eq, and } from '../db/schema.js';
-import type { NextFunction, Response, Request } from 'express';
-import { validateLikeData } from '../utils/like.utils.js';
+import { db } from "../index.js";
+import { likes, eq, and } from "../db/schema.js";
+import type { NextFunction, Response, Request } from "express";
+import { validateLikeData } from "../utils/like.utils.js";
 
-// POST THE LIKE,
+// Toogle the like
 
-export const postLike = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const currentUser = (req as any).user;
-      const userId: number = Number(currentUser.sub);
+export const togglePostLike = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const currentUser = (req as any).user;
+    const userId = Number(currentUser?.sub);
 
-      if(!userId){
-         next(new Error("Please loggedIn first"));
-      }
-  
-      const {like, postId} = validateLikeData(req.body);
-
-      await db.insert(likes).values([{like, postId, userId}]);
-      
-      res.status(201).json({
-        message: "Posts liked successfully"
-      })
-    } catch (error) {
-        console.log(error);
-        next(new Error("Something went wrong while posting the like on the video"))
+    if (!userId) {
+      return res.status(401).json({ message: "Please log in first" });
     }
-}
 
-// GET all likes on a specific post
+    const postId = Number(req.params.postId);
 
-export const getLikes = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const postId = Number(req.params.postId);
-        if (isNaN(postId)) {
-            return res.status(400).json({ message: "Invalid Post ID format" });
-        }
-        const allLikes = await db.query.likes.findMany({
-            where: eq(likes.postId, postId),
-            with: {
-                user: {
-                    columns: {
-                        name: true,
-                    }
-                }
-            }
-        })
-
-       if(!allLikes){
-        return res.status(404).json({
-            message: "No comments on this post"
-        })
-       }
-
-       res.status(200).json({
-        message: "Comments fetched successfully",
-        allLikes
-       })
-    } catch (error) {
-        console.log(error);
-        res.status(404).json({
-            message: "Something went wrong"
-        })
+    if (isNaN(postId)) {
+      return res.status(400).json({ message: "Invalid Post ID format" });
     }
-}
 
-// Delete the like
+    // 1. Check if the like already exists
+    const existingLike = await db.query.likes.findFirst({
+      where: (likes, { and, eq }) =>
+        and(eq(likes.postId, postId), eq(likes.userId, userId)),
+    });
 
-export const deleteLike = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        
-        const currentUser = (req as any).user;
-        const userId: number = Number(currentUser.sub);
+    if (existingLike) {
+      // 2. If it exists, remove the like
+      await db.delete(likes).where(eq(likes.id, existingLike.id));
 
-        if (!userId) {
-            return next(new Error("User not authenticated"));
-        }
+      return res.status(200).json({
+        message: "Post unliked successfully",
+        isLiked: false,
+      });
+    } else {
+      // 3. If it doesn't exist, add the like
+      await db.insert(likes).values({ postId, userId });
 
-        const { id } = req.body;
-        const deletedLike = await db.delete(likes)
-            .where(
-                and(
-                    eq(likes.id, id),
-                    eq(likes.userId, userId)
-                )
-            )
-            .returning();
-
-        if (deletedLike.length === 0) {
-            return next(new Error("you are not authorized to delete the like."));
-        }
-
-        res.status(200).json({
-            success: true,
-            message: "Like deleted successfully",
-            data: deletedLike[0]
-        });
-
-    } catch (error) {
-        console.log(error);
-        next(new Error("Error while deleting the like"));
+      return res.status(201).json({
+        message: "Post liked successfully",
+        isLiked: true,
+      });
     }
-}
-
-
-
-
+  } catch (error) {
+    console.error(error);
+    next(new Error("Database operation failed"));
+  }
+};

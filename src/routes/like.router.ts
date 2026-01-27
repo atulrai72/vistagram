@@ -1,10 +1,9 @@
 import express, { Router } from "express";
-import { deleteLike, getLikes, postLike } from "../controllers/likes.controller.js";
+import { togglePostLike } from "../controllers/likes.controller.js";
 import { jwtVerify } from "../middleware/jwt-verify.middleware.js";
-
 
 const likeRouter: Router = express.Router();
 
-likeRouter.post("/post-like",jwtVerify, postLike).delete("/delete-like",jwtVerify, deleteLike).get("/like/:postId", jwtVerify, getLikes);
+likeRouter.post("/toggle/:postId", jwtVerify, togglePostLike);
 
 export default likeRouter;

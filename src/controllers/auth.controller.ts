@@ -11,6 +11,7 @@ import { createClient } from "redis";
 export const userSignUp = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const {name, email, password} = validateRegistrationData(req.body);
+        console.log(name);
         
         // Check if email exists
         const existingEmail = await db.select().from(users).where(sql`${users.email} = ${email}`)

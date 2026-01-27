@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import multer from "multer";
-import { getAllPosts, getAllPostsWithUserDetails, getPostWithUser, userPosts } from "../controllers/posts.contoller.js";
+import { deletePost, getAllPostsWithUserDetails, userPosts } from "../controllers/posts.contoller.js";
 import { jwtVerify } from "../middleware/jwt-verify.middleware.js";
 
 const storage = multer.memoryStorage();
@@ -18,8 +18,6 @@ postsRouter.post(
 );
 
 postsRouter
-  .get("/all-posts", jwtVerify, getAllPosts)
-  .get("/all-posts-with-user", getAllPostsWithUserDetails)
-  .get("/post-with-user", getPostWithUser);
+  .get("/all-posts-with-user", jwtVerify, getAllPostsWithUserDetails).delete("/delete/:postId", jwtVerify, deletePost)
 
 export default postsRouter;
