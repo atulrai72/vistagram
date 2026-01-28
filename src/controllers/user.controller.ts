@@ -1,5 +1,12 @@
 import type { NextFunction, Request, Response } from "express";
-import { eq, users } from "../db/schema.js";
+import {
+  eq,
+  follows,
+  getTableColumns,
+  posts,
+  users,
+  sql,
+} from "../db/schema.js";
 import { db } from "../index.js";
 import { v2 as cloudinary } from "cloudinary";
 import streamifier from "streamifier";
@@ -37,36 +44,6 @@ export const getCurrentUser = async (
     next(new Error("Something went wrong while fecthing your profile."));
   }
 };
-
-// Get all user data(for admins)
-// export const getAllUserData = async (req: Request, res: Response, next: NextFunction) => {
-//    try {
-
-//    } catch (error) {
-//       console.log(error);
-//       next(new Error("Something went wrong while fetching all users data."));
-//    }
-// }
-
-// export const getUserDataWithPosts= async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-
-//    } catch (error) {
-//       console.log(error);
-//       next(new Error("Something went wrong while fetching user data and posts"));
-//    }
-// }
-
-// export const getFollowingFeed = async (req: Request, res: Response, next: NextFunction) => {
-//    try {
-
-//    } catch (error) {
-//       console.log(error);
-//       res.status(404).json({
-//          message: "Something went wrong while fetching the feed of people you follow",
-//       })
-//    }
-// }
 
 // Upload the avatar and the name
 
@@ -109,6 +86,7 @@ export const updateUser = async (
 
       // 3. Upload the file buffer
       const uploadResult: any = await streamUpload(req.file.buffer);
+      console.log(uploadResult);
 
       console.log("Cloudinary URL:", uploadResult.secure_url);
 
@@ -131,4 +109,191 @@ export const updateUser = async (
   }
 };
 
-//
+// Get the user details along with his following and followers and his posts
+
+export const getCurrentUserDetails = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const currentUser = (req as any).user;
+    const userId: number = Number(currentUser.sub);
+
+    if (!userId) {
+      next(new Error("Please loggedIn first"));
+    }
+
+    const userDetails = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+      with: {
+        posts: {
+          columns: {
+            file_type: true,
+            file_url: true,
+          },
+        },
+        followers: true,
+        following: true,
+      },
+    });
+
+    if (!userDetails) {
+      return res.status(404).json({
+        message: "No user details found",
+      });
+    }
+
+    res.status(200).json({
+      message: "Your profile fetched succesfully",
+      userDetails,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      message: "Error while fetching the user details",
+    });
+  }
+};
+
+// A user can follow another user
+export const follow = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const currentUser = (req as any).user;
+    const userId: number = Number(currentUser.sub);
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "Please loggedIn first, You are not authorised to this task",
+      });
+    }
+
+    const id = Number(req.params.id);
+
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid Post ID format" });
+    }
+
+    const data = await db
+      .insert(follows)
+      .values([{ followerId: userId, followingId: id }]);
+
+    res.status(201).json({
+      message: "You followed another user successfully",
+      data,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      message: "Error while following or follow the user",
+    });
+  }
+};
+
+// A user can unfollow another user
+
+export const unfollow = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const currentUser = (req as any).user;
+    const userId: number = Number(currentUser.sub);
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "Please loggedIn first, You are not authorised to this task",
+      });
+    }
+
+    const id = Number(req.params.id);
+
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid Post ID format" });
+    }
+
+    const following = await db.query.follows.findFirst({
+      where: eq(follows.followingId, id),
+    });
+
+    if (!following) {
+      return res.status(404).json({
+        message: "You are not following this user.",
+      });
+    }
+
+    const data = await db.delete(follows).where(eq(follows.followingId, id));
+
+    res.status(201).json({
+      message: "You unfollowed another user successfully",
+      data,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      message: "Error while following or follow the user",
+    });
+  }
+};
+
+// GET a specific user detail
+
+export const getUserDetail = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const currentUser = (req as any).user;
+    const userId: number = Number(currentUser.sub);
+
+    if (!userId) {
+      next(new Error("Please loggedIn first"));
+    }
+
+    const id = Number(req.params.id);
+
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid Post ID format" });
+    }
+
+    const userDetails = await db.query.users.findFirst({
+      where: eq(users.id, id),
+      with: {
+        posts: {
+          columns: {
+            file_type: true,
+            file_url: true,
+          },
+        },
+        followers: true,
+        following: true,
+      },
+    });
+
+    if (!userDetails) {
+      return res.status(404).json({
+        message: "No user details found",
+      });
+    }
+
+    res.status(200).json({
+      message: "User detail fetched succesfully",
+      userDetails,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      message: "Error while fetching the user details",
+    });
+  }
+};
+
+// TODO: Get the data of whom a user follow
+
+// TODO: Get the data of someone who follow a specfic user

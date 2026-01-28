@@ -11,6 +11,7 @@ import {
   users,
   desc,
   getTableColumns,
+  follows,
 } from "../db/schema.js";
 import type { NextFunction, Response, Request } from "express";
 import streamifier from "streamifier";
@@ -119,7 +120,13 @@ export const getAllPostsWithUserDetails = async (
       })
       .from(posts)
       .leftJoin(users, eq(posts.userId, users.id))
-      .where(cursor ? lt(posts.id, Number(cursor)) : undefined)
+      .innerJoin(follows, eq(posts.userId, follows.followingId))
+      .where(
+        and(
+          eq(follows.followerId, userId),
+          cursor ? lt(posts.id, Number(cursor)) : undefined,
+        ),
+      )
       .orderBy(desc(posts.id))
       .limit(limit);
 

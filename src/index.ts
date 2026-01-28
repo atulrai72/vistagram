@@ -6,48 +6,49 @@ import authRouter from "./routes/auth.router.js";
 import postsRouter from "./routes/post.router.js";
 import errorMiddleware from "./error-handler/index.js";
 import userRouter from "./routes/user.router.js";
-import * as schema from "./db/schema.js"
+import * as schema from "./db/schema.js";
 import commentRouter from "./routes/comment.router.js";
 import likeRouter from "./routes/like.router.js";
 import cors from "cors";
-
+import searchRouter from "./routes/search.router.js";
 
 const app = express();
-app.use(express.json({limit: "10mb"}));
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
+app.use(morgan("dev"));
 app.use(cors());
 
 export const db = drizzle({
-    connection: {
-        connectionString: process.env.DATABASE_URL,
-    },
-    schema: schema
-})
+  connection: {
+    connectionString: process.env.DATABASE_URL,
+  },
+  schema: schema,
+});
 
 app.get("/", (req, res) => {
-    try {
-        res.json({
-            message: "Server Running"
-        })
-    } catch (error) {
-        console.error("Something went wrong!")
-        res.json({
-            message: "Something went very wrong"
-        })
-    }
-})
+  try {
+    res.json({
+      message: "Server Running",
+    });
+  } catch (error) {
+    console.error("Something went wrong!");
+    res.json({
+      message: "Something went very wrong",
+    });
+  }
+});
 
 app.use("/api/auth", authRouter);
 app.use("/api/posts", postsRouter);
 app.use("/api/users", userRouter);
 app.use("/api/comments", commentRouter);
 app.use("/api/likes", likeRouter);
+app.use("/api/search", searchRouter);
 
 app.use(errorMiddleware);
 
 const PORT = 3001;
 
 app.listen(PORT, () => {
-    console.log(`Server is listen on port ${PORT}`)
-})
+  console.log(`Server is listen on port ${PORT}`);
+});
