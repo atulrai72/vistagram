@@ -8,6 +8,7 @@ import {
   index,
   timestamp,
   unique,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -46,7 +47,6 @@ export const likes = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => ({
     pk: unique().on(t.userId, t.postId),
@@ -68,6 +68,7 @@ export const comments = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => ({
     postIdx: index("comments_post_id_idx").on(t.postId),
@@ -90,6 +91,28 @@ export const follows = pgTable(
     followingIdx: index("follows_following_idx").on(t.followingId),
   }),
 );
+
+// For one to one chat
+
+export const rooms = pgTable("rooms", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  isGroup: boolean().default(false),
+  participants: integer().array(),
+  lastMessage: text(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const messages = pgTable("messages", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  message: varchar({ length: 20000 }).notNull(),
+  senderId: integer("sender_id")
+    .notNull()
+    .references(() => users.id),
+  roomId: integer("room_id")
+    .notNull()
+    .references(() => rooms.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 // TODO: Saved posts for many-many relations
 export const savedPosts = pgTable("save-posts-schema", {
@@ -153,6 +176,21 @@ export const commentsRelations = relations(comments, ({ one }) => ({
   post: one(posts, {
     fields: [comments.postId],
     references: [posts.id],
+  }),
+}));
+
+export const roomsRelations = relations(rooms, ({ many }) => ({
+  messages: many(messages),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  room: one(rooms, {
+    fields: [messages.roomId],
+    references: [rooms.id],
+  }),
+  sender: one(users, {
+    fields: [messages.senderId],
+    references: [users.id],
   }),
 }));
 
