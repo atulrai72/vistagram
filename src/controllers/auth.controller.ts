@@ -30,8 +30,6 @@ export const userSignUp = async (req: Request, res: Response, next: NextFunction
         // Insert user data
         const newUser = await db.insert(users).values([{name, email, password: hashedPassword}]);
 
-        console.log(newUser);
-
         res.status(200).json({
             message: `SignedUp successfull`,
             newUser
@@ -45,15 +43,9 @@ export const userSignUp = async (req: Request, res: Response, next: NextFunction
 
 export const userLogin = async (req: Request, res: Response, next: NextFunction) => {
    try {
-      // 1)Check the users body data
-
       const {email, password} = validateLoginData(req.body);
-
-      // 2)Check if the user exists
-
+      
       const existingUser = await db.select().from(users).where(sql`${users.email} = ${email}`)
-
-      console.log(existingUser);
 
       if (existingUser.length === 0) {
          res.json({
@@ -61,9 +53,6 @@ export const userLogin = async (req: Request, res: Response, next: NextFunction)
          })
          return;
       }
-
-      // 3)Check if the password is correct
-      // TODO: Compare it via using the bcrypt
 
       const passwordMatch = await bcrypt.compare(password, existingUser[0]?.password!);
        
@@ -74,14 +63,21 @@ export const userLogin = async (req: Request, res: Response, next: NextFunction)
          return;
       }
 
-      // 4)if exists, generate the JWT token, and assign to the browser header
+      const userId = existingUser[0]?.id;
+      const name = existingUser[0]?.name;
+      const payload = { sub: userId};
+      const secretKey: any = process.env.JWT_SECRET;
+      const token = jwt.sign(payload, secretKey, { expiresIn: '10h' });
 
-         const userId = existingUser[0]?.id;
-         const name = existingUser[0]?.name;
-         const payload = { sub: userId, username: name};
-         const secretKey: any = process.env.JWT_SECRET;
-         const token = jwt.sign(payload, secretKey, { expiresIn: '10h' });
-      // 5)show that user is logged in succesfull
+      const cookieOptions: any = {
+      expires: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production", 
+      }; 
+
+      res.cookie("token", token, cookieOptions);
+
 
       res.status(200).json({
          message: "LoggedIn Successfull",
@@ -98,8 +94,8 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
    try {
       res.clearCookie("token", {
          httpOnly: true,
-         secure: process.env.NODE_ENV === "production",
-         sameSite: "none",
+         secure: false,
+         sameSite: "lax",
       });
 
       res.status(200).json({
@@ -293,5 +289,3 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
       }
    }
 }
-// TODO: ADD field passwordChangedAt in schema to keep check 
-// DELETE THE USER AND also its posts and likes and comments

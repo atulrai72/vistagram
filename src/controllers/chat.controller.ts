@@ -1,7 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
-import { and, eq, follows, rooms, sql, users } from "../db/schema.js";
+import { and, eq, follows, messages, rooms, sql, users } from "../db/schema.js";
 import { db } from "../index.js";
 
+// Get all the mutual users
 export const getAllMutualUsers = async (
   req: Request,
   res: Response,
@@ -31,6 +32,7 @@ export const getAllMutualUsers = async (
   }
 };
 
+// Assign the rooms for the new user or if existing, give the room
 export const assigningRooms = async (
   req: Request,
   res: Response,
@@ -108,6 +110,7 @@ export const assigningRooms = async (
   }
 };
 
+// Get the assigned room for the user
 export const getAssignedRoom = async (
   req: Request,
   res: Response,
@@ -152,3 +155,20 @@ export const getAssignedRoom = async (
     res.status(404).json("Error finding the roomId");
   }
 };
+
+export const getMessages = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const roomId = req.params.id;
+
+    if (!roomId) {
+      return res.status(401).json({ message: "Room id not found" });
+    }
+
+    const allMessages = await db.select().from(messages).where(eq(messages.roomId, Number(roomId)));
+
+    return res.status(200).json(allMessages);
+  } catch (error) {
+    console.log(error);
+    res.status(404).json("Error fetching the chat");
+  }
+}

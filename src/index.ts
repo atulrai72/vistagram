@@ -15,6 +15,9 @@ import { Server } from "socket.io";
 import { createServer } from "http";
 import chatRouter from "./routes/chat.router.js";
 import { connectKafka } from "./lib/kafka.js";
+import analyticRouter from "./routes/analytics.router.js";
+import { messages } from "./db/schema.js";
+import cookieParser from "cookie-parser";
 
 const app = express();
 
@@ -28,10 +31,16 @@ const io = new Server(httpServer, {
   },
 });
 
+app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS','PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Connect to the database
 export const db = drizzle({
@@ -45,23 +54,28 @@ export const db = drizzle({
 // Check on the middleware if the user exists and also if both follow each other(Maybe)
 
 // Open the websocket connection
-io.on("connection", (socket) => {
+io.on("connection", async (socket) => {
   console.log(`User connected: ${socket.id}`);
 
   // Listening to the messages sending by the user to the certain room
-  socket.on("message", (data) => {
-    console.log("User message", data);
+  socket.on("message", async (data) => {
     console.log(data.room);
+    await db.insert(messages).values({
+      message: data.text,
+      senderId: data.userId,
+      roomId: data.room,
+    });
+
     io.to(data.room).emit("recieve_message", data);
   });
 
   // Join a new room or existing room
-  socket.on("join-room", (room) => {
+  socket.on("join-room", async (room) => {
     socket.join(room);
     console.log(`User joined the room ${room}`);
   });
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", async () => {
     console.log("User disconnected", socket.id);
   });
 });
@@ -86,13 +100,14 @@ app.use("/api/comments", commentRouter);
 app.use("/api/likes", likeRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/chat", chatRouter);
+app.use("/api/analytics", analyticRouter);
 
 app.use(errorMiddleware);
 
 const PORT = 3001;
 
 const start = async () => {
-  await connectKafka();
+  // await connectKafka();
 
   httpServer.listen(PORT, () => {
     console.log(`Server is listen on port ${PORT}`);

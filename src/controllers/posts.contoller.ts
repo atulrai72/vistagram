@@ -144,6 +144,71 @@ export const getAllPostsWithUserDetails = async (
   }
 };
 
+export const getAllVideosWithUserDetails = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { cursor } = req.query;
+    const limit = 5;
+
+    const currentUser = (req as any).user;
+    const userId = Number(currentUser?.sub);
+
+    if (!userId) {
+      return res.status(401).json({ message: "Please log in first" });
+    }
+
+    const postsData = await db
+      .select({
+        ...getTableColumns(posts),
+
+        author: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          avatar_url: users.avatar_url,
+        },
+
+        likeCount: sql<number>`(
+            SELECT count(*) FROM ${likes} WHERE ${likes.postId} = ${posts.id}
+        )`.mapWith(Number),
+
+        commentCount: sql<number>`(
+            SELECT count(*) FROM ${comments} WHERE ${comments.postId} = ${posts.id}
+        )`.mapWith(Number),
+
+        hasLiked: sql<boolean>`EXISTS (
+            SELECT 1 FROM ${likes} 
+            WHERE ${likes.postId} = ${posts.id} AND ${likes.userId} = ${userId}
+        )`.mapWith(Boolean),
+      })
+      .from(posts)
+      .leftJoin(users, eq(posts.userId, users.id))
+      .where(
+        and(
+          eq(posts.file_type, "video"),
+          cursor ? lt(posts.id, Number(cursor)) : undefined,
+        ),
+      )
+      .orderBy(desc(posts.id))
+      .limit(limit);
+
+    const nextCursor =
+      postsData.length === limit ? postsData[postsData.length - 1]?.id : null;
+
+    res.status(200).json({
+      message: "Posts fetched successfully",
+      posts: postsData,
+      nextCursor,
+    });
+  } catch (error) {
+    console.error("Fetch Error:", error);
+    next(new Error("Error while fetching the posts with user details"));
+  }
+};
+
 // DELETE THE POST AND also the comments and likes // I have to use transaction
 
 export const deletePost = async (

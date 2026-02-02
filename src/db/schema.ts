@@ -15,7 +15,7 @@ export const users = pgTable("users", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   name: varchar({ length: 20 }).notNull(),
   email: varchar({ length: 50 }).unique().notNull(),
-  password: varchar().notNull(),
+  password: varchar({ length: 500 }).notNull(),
   avatar_url: text(),
 });
 
@@ -91,8 +91,6 @@ export const follows = pgTable(
     followingIdx: index("follows_following_idx").on(t.followingId),
   }),
 );
-
-// For one to one chat
 
 export const rooms = pgTable("rooms", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
