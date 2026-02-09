@@ -3,6 +3,7 @@ import { likes, eq, and } from "../db/schema.js";
 import type { NextFunction, Response, Request } from "express";
 import { validateLikeData } from "../utils/like.utils.js";
 import { sendEvent } from "../lib/kafka.js";
+import { likePost } from "../neo4j/neo4j.action.js";
 
 // Toogle the like
 
@@ -31,6 +32,8 @@ export const togglePostLike = async (
         and(eq(likes.postId, postId), eq(likes.userId, userId)),
     });
 
+    // await likePost(postId, userId);
+
     if (existingLike) {
       // 2. If it exists, remove the like
       await db.delete(likes).where(eq(likes.id, existingLike.id));
@@ -43,16 +46,16 @@ export const togglePostLike = async (
       // 3. If it doesn't exist, add the like
       await db.insert(likes).values({ postId, userId });
 
-      sendEvent("vistagram-events", {
-        event_id: crypto.randomUUID(),
-        userId,
-        postId,
-        action: "LIKE",
-        timestamp: Date.now(),
-        meta: {
-          source: "feed",
-        },
-      });
+      // sendEvent("vistagram-events", {
+      //   event_id: crypto.randomUUID(),
+      //   userId,
+      //   postId,
+      //   action: "LIKE",
+      //   timestamp: Date.now(),
+      //   meta: {
+      //     source: "feed",
+      //   },
+      // });
 
       return res.status(201).json({
         message: "Post liked successfully",

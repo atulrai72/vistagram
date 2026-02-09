@@ -18,6 +18,7 @@ import { connectKafka } from "./lib/kafka.js";
 import analyticRouter from "./routes/analytics.router.js";
 import { messages } from "./db/schema.js";
 import cookieParser from "cookie-parser";
+import notificationRouter from "./routes/notifications.router.js";
 
 const app = express();
 
@@ -75,6 +76,7 @@ io.on("connection", async (socket) => {
     console.log(`User joined the room ${room}`);
   });
 
+  // When the user disconnects
   socket.on("disconnect", async () => {
     console.log("User disconnected", socket.id);
   });
@@ -100,6 +102,7 @@ app.use("/api/comments", commentRouter);
 app.use("/api/likes", likeRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/chat", chatRouter);
+app.use("/api/notifications", notificationRouter);
 app.use("/api/analytics", analyticRouter);
 
 app.use(errorMiddleware);

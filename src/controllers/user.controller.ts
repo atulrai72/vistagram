@@ -10,6 +10,7 @@ import {
 import { db } from "../index.js";
 import { v2 as cloudinary } from "cloudinary";
 import streamifier from "streamifier";
+import { followUser } from "../neo4j/neo4j.action.js";
 
 // GET the loggedIn user data
 export const getCurrentUser = async (
@@ -175,12 +176,14 @@ export const follow = async (
     const id = Number(req.params.id);
 
     if (isNaN(id)) {
-      return res.status(400).json({ message: "Invalid Post ID format" });
+      return res.status(400).json({ message: "Invalid USER ID format" });
     }
 
     const data = await db
       .insert(follows)
       .values([{ followerId: userId, followingId: id }]);
+
+    // await followUser(userId, id);
 
     res.status(201).json({
       message: "You followed another user successfully",
@@ -214,7 +217,7 @@ export const unfollow = async (
     const id = Number(req.params.id);
 
     if (isNaN(id)) {
-      return res.status(400).json({ message: "Invalid Post ID format" });
+      return res.status(400).json({ message: "Invalid USER ID format" });
     }
 
     const following = await db.query.follows.findFirst({
@@ -259,7 +262,7 @@ export const getUserDetail = async (
     const id = Number(req.params.id);
 
     if (isNaN(id)) {
-      return res.status(400).json({ message: "Invalid Post ID format" });
+      return res.status(400).json({ message: "Invalid USER ID format" });
     }
 
     const userDetails = await db.query.users.findFirst({

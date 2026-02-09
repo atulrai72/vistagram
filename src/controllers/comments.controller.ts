@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { validateCommentData } from "../utils/comment.utils.js";
 import { db } from "../index.js";
 import { comments, users, and, eq } from "../db/schema.js";
+import { commentUser } from "../neo4j/neo4j.action.js";
 
 // Post the comment
 export const postComment = async (
@@ -19,10 +20,15 @@ export const postComment = async (
 
     const { comment, postId } = validateCommentData(req.body);
 
-    await db.insert(comments).values([{ comment, postId, userId }]);
+    const postComment = await db.insert(comments).values([{ comment, postId, userId }]).returning();
+    
+    // const id: any = postComment[0]?.id;
 
+    // await commentUser(comment, postId, userId, id);
+    
     res.status(201).json({
       message: "Comment on post happened successfully",
+      postComment
     });
   } catch (error) {
     console.log(error);

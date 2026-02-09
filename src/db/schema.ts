@@ -112,6 +112,28 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const notifications = pgTable("notifications", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  
+  recipientId: integer("recipient_id")
+    .notNull()
+    .references(() => users.id),
+    
+  actorId: integer("actor_id")
+    .notNull()
+    .references(() => users.id),
+    
+  type: varchar({ length: 50 }).notNull(),
+  
+  postId: integer("post_id").references(() => posts.id),
+  
+  resourceType: varchar({ length: 50 }).notNull(),
+  
+  isRead: boolean("is_read").default(false).notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // TODO: Saved posts for many-many relations
 export const savedPosts = pgTable("save-posts-schema", {
   id: integer().primaryKey(),
@@ -176,6 +198,14 @@ export const commentsRelations = relations(comments, ({ one }) => ({
     references: [posts.id],
   }),
 }));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  recipient: one(users, { fields: [notifications.recipientId], references: [users.id] }),
+  actor: one(users, { fields: [notifications.actorId], references: [users.id] }),
+  post: one(posts, { fields: [notifications.postId], references: [posts.id] }),
+}));
+
+
 
 export const roomsRelations = relations(rooms, ({ many }) => ({
   messages: many(messages),

@@ -12,10 +12,12 @@ import {
   desc,
   getTableColumns,
   follows,
+  notifications,
 } from "../db/schema.js";
 import type { NextFunction, Response, Request } from "express";
 import streamifier from "streamifier";
 import { validateUplaodData } from "../utils/posts.utils.js";
+import { createPost, getHomeFeed, getPostByTag } from "../neo4j/neo4j.action.js";
 
 // Post Upload
 export const userPosts = async (req: Request, res: Response) => {
@@ -64,11 +66,36 @@ export const userPosts = async (req: Request, res: Response) => {
     const file_type = uploadResult.resource_type;
     const userId = (req as any).user.sub;
 
-    await db.insert(posts).values([{ file_url, file_type, caption, userId }]);
+    const hashtags = (caption.match(/#\w+/g) || []).map(tag => tag.slice(1).toLowerCase());
 
+    const post = await db.insert(posts).values([{ file_url, file_type, caption, userId }]).returning();
+    console.log(post);
+
+    // const postId = post[0]?.id;
+    // await createPost({applicationId: postId!, file_url, file_type, caption, userId, tags: hashtags});
+
+    /*-----------------Push the notifications-----------------*/
+
+    // 1) Find all the followers of the user
+    const followers = await db.select().from(follows).where(eq(follows.followingId, userId));
+    
+    // 2) Push the notifications to all the followers
+    
+  const notificationsToInsert = followers.map((follower) => ({
+  recipientId: follower.followerId, 
+  actorId: userId,        
+  type: 'NEW_POST',
+  postId: post[0]?.id,
+  resourceType: 'post',
+  isRead: false,
+}));
+
+  if(notificationsToInsert.length > 0){
+    await db.insert(notifications).values(notificationsToInsert);
+  }
+    
     res.status(200).json({
       message: "Post successful",
-      // url: uploadResult.secure_url,
     });
   } catch (error) {
     console.log("Upload Error:", error);
@@ -129,6 +156,14 @@ export const getAllPostsWithUserDetails = async (
       )
       .orderBy(desc(posts.id))
       .limit(limit);
+
+    // // Neo4j Testing
+    // const homeFeed = await getHomeFeed(userId, Number(cursor), limit);
+    // // console.log("Home feed", homeFeed); Working
+
+    // const tag = "girl";
+    // const postsByTag = await getPostByTag(tag);
+    // console.log("Posts by tag", postsByTag);
 
     const nextCursor =
       postsData.length === limit ? postsData[postsData.length - 1]?.id : null;

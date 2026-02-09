@@ -7,13 +7,12 @@ import bcrypt from "bcryptjs";
 import { sendMail } from "../utils/email.utils.js";
 import crypto from "crypto";
 import { createClient } from "redis";
+import { createUser } from "../neo4j/neo4j.action.js";
 
 export const userSignUp = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const {name, email, password} = validateRegistrationData(req.body);
-        console.log(name);
         
-        // Check if email exists
         const existingEmail = await db.select().from(users).where(sql`${users.email} = ${email}`)
 
         if (existingEmail.length !== 0) {
@@ -22,13 +21,12 @@ export const userSignUp = async (req: Request, res: Response, next: NextFunction
             })
         }
 
-        // Hash the password
         const saltRounds = 10;
         const hashedPassword: string = await bcrypt.hash(password, saltRounds)
 
-        
-        // Insert user data
-        const newUser = await db.insert(users).values([{name, email, password: hashedPassword}]);
+        const newUser = await db.insert(users).values([{name, email, password: hashedPassword}]).returning();
+
+      //   await createUser({applicationId: newUser[0]?.id!, email, name});
 
         res.status(200).json({
             message: `SignedUp successfull`,
